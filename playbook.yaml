@@ -1,0 +1,37 @@
+- hosts: all
+  tags:
+    - dependencies
+  tasks:
+    - name: Install pip dependencies
+      pip:
+        name:
+          - jsondiff
+        state: present
+
+- hosts: all
+  tags:
+    - deploy
+  vars_files:
+    - secrets.yaml
+  tasks:
+    - name: Init a new swarm with default parameters
+      community.docker.docker_swarm:
+        state: present
+  
+    - name: Copy docker-compose
+      copy:
+        src:  ./docker-compose.yaml
+        dest: ~/docker-compose-bublik.yaml
+
+    - name: Deploy the stack
+      docker_stack:
+        state: present
+        name: bublik
+        prune: yes
+        resolve_image: always
+        compose:
+          - ~/docker-compose-bublik.yaml
+      environment:
+        MONGODB_CONNECTION: "{{ MONGODB_CONNECTION }}"
+        TELEGRAM_TOKEN: "{{ TELEGRAM_TOKEN }}"
+        ADMIN_STRING: "{{ ADMIN_STRING }}"

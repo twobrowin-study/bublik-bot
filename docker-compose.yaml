@@ -1,0 +1,37 @@
+version: '3.8'
+
+x-logging:
+  &default-logging
+  driver: "json-file"
+  options:
+    max-size: "500m"
+    max-file: "2"
+
+services:
+  mongo:
+    image: mongo:4.2.24
+    restart: always
+    ports:
+      - "0.0.0.0:27017:27017"
+    logging: *default-logging
+    networks:
+      - bublik
+    volumes:
+      - mongo-data:/data/db
+    
+  bublik-bot:
+    image: twobrowin/bublik-bot:1.0.1
+    restart: always
+    logging: *default-logging
+    networks:
+      - bublik
+    environment:
+      MONGODB_CONNECTION: ${MONGODB_CONNECTION}
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
+      ADMIN_STRING: ${ADMIN_STRING}
+
+networks:
+  bublik:
+
+volumes:
+  mongo-data:
