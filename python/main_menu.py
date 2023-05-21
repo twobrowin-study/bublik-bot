@@ -289,5 +289,5 @@ def compare_handler(message):
     else:
         bot.send_message(message.chat.id, "Ошибка при изменении chat_id")
 
-
-bot.polling()
+if __name__ == "__main__":
+    bot.polling(non_stop=True)
