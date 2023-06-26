@@ -20,7 +20,7 @@ services:
       - mongo-data:/data/db
     
   bublik-bot:
-    image: twobrowin/bublik-bot:1.0.2
+    image: twobrowin/bublik-bot:1.1.0
     restart: always
     logging: *default-logging
     networks:

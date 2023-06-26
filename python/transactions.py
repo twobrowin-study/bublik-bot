@@ -32,6 +32,11 @@ def process_amount_callback(message, callback_data):
         bot.register_next_step_handler(sent, process_amount_callback, callback_data)
         return
 
+    if amount < 0:
+        bot.send_message(message.chat.id, 'Отрицательная сумма или ноль, вернемся в главное меню')
+        main_menu_func(message)
+        return
+
     parts = callback_data.split(':')
     sender = int(parts[1])
     recipient = int(parts[2])
@@ -156,6 +161,10 @@ def process_amount_callback_org(message, callback_data):
         sent = bot.send_message(chat_id, '🗿 Неверный формат ввода! Попробуйте снова.', reply_markup=markup)
         bot.register_next_step_handler(sent, process_amount_callback_org, callback_data)
         return
+    if amount < 0:
+        bot.send_message(message.chat.id, 'Отрицательная сумма или ноль, вернемся в главное меню')
+        main_menu_func(message)
+        return
 
     parts = callback_data.split(':')
     sender = parts[1]
@@ -206,7 +215,7 @@ def process_transaction_org(call):
     }
     transactions.insert_one(transaction)
     recipient_doc = users.find_one({'chat_id': recipient})
-    bot.send_message(sender_doc['admin_chat_id'], f'✅ Транзакция успешно проведена, удержан налог {tax} Бублей')
+    bot.send_message(call.message.chat.id, f'✅ Транзакция успешно проведена, удержан налог {tax} Бублей')
     try:
         bot.send_message(recipient_doc['chat_id'], f"💸 Вам поступил перевод {amount} Бублей от {sender_doc['name']}\nВаш баланс: {recipient_doc['balance']}")
     except:
@@ -238,6 +247,12 @@ def process_amount_callback_org_p(message, callback_data):
         sent = bot.send_message(message.chat.id, 'Неверный формат ввода! Попробуйте снова.', reply_markup=markup)
         bot.register_next_step_handler(sent, process_amount_callback_org_p, callback_data)
         return
+
+    if amount < 0:
+        bot.send_message(message.chat.id, 'Отрицательная сумма или ноль, вернемся в главное меню')
+        main_menu_func(message)
+        return
+
     orga = db['organizations']
     parts = callback_data.split(':')
     sender = message.chat.id
@@ -271,6 +286,12 @@ def process_transaction_org_r(call):
         return 'Отправитель не найден'
     if not recipient_doc:
         return 'Получатель не найден'
+
+    if amount < 0:
+        bot.send_message(call.message.chat.id, 'Отрицательная сумма или ноль, вернемся в главное меню')
+        main_menu_func(message)
+        return
+
     # Проверяем, что сумма транзакции не превышает баланс отправителя
     if sender_doc['balance'] < amount:
         bot.send_message(sender, 'Недостаточно средств')
@@ -280,7 +301,7 @@ def process_transaction_org_r(call):
     tax = int(0.2*amount)
     users.update_one({'chat_id': sender}, {'$inc': {'balance': -amount}})
     org.update_one({'id_organization': recipient}, {'$inc': {'balance': (amount - tax)}})
-    org.update_one({'id_organization': "org0"}, {'$inc': {'balance': (amount - tax)}})
+    org.update_one({'id_organization': "org0"}, {'$inc': {'balance': tax}})
 
     # Добавляем новую транзакцию
     transaction = {
@@ -338,6 +359,11 @@ def process_amount_callback_orgorg(message, callback_data):
         sent = bot.send_message(message.chat.id, 'Неверный формат ввода! Попробуйте снова.', reply_markup=markup)
         bot.register_next_step_handler(sent, process_amount_callback_orgorg, callback_data)
         return
+
+    if amount < 0:
+        bot.send_message(message.chat.id, 'Отрицательная сумма или ноль, вернемся в главное меню')
+        main_menu_func(message)
+        return
     org = db['organizations']
     parts = callback_data.split(':')
     sender = parts[1]
@@ -370,24 +396,22 @@ def process_transaction_orgorg(call):
         return 'Отправитель не найден'
     if not recipient_doc:
         return 'Получатель не найден'
+    if amount < 0:
+        bot.send_message(call.message.chat.id, 'Отрицательная сумма или ноль, вернемся в главное меню')
+        main_menu_func(message)
+        return
+    tax = int(0.2 * amount)
     # Проверяем, что сумма транзакции не превышает баланс отправителя
-    if sender_doc['balance'] < amount:
-        sent = bot.send_message(sender_doc['admin_chat_id'], 'Недостаточно средств')
+    if sender_doc['balance'] < amount+tax:
+        sent = bot.send_message(call.message.chat.id, 'Недостаточно средств')
         return 'Недостаточно средств'
-    # Обновляем балансы пользователей
-    re_be = recipient_doc['balance']
-    se_be = sender_doc['balance']
 
-    org.update_one({'id_organization': sender}, {'$inc': {'balance': -amount}})
+    org.update_one({'id_organization': sender}, {'$inc': {'balance': -(amount+tax)}})
     org.update_one({'id_organization': recipient}, {'$inc': {'balance': amount}})
+    org.update_one({'id_organization': "org0"}, {'$inc': {'balance': tax}})
 
     sender_doc = org.find_one({'id_organization': sender})
     recipient_doc = org.find_one({'id_organization': recipient})
-
-    se_af = sender_doc['balance']
-    re_af = recipient_doc['balance']
-
-    print(re_be, se_be, re_af, se_af)
 
     # Добавляем новую транзакцию
     transaction = {
@@ -400,8 +424,8 @@ def process_transaction_orgorg(call):
     try:
         bot.send_message(recipient_doc['admin_chat_id'], f"💸 В компанию поступил перевод {amount} Бублей от \"{sender_doc['name']}\"\n💰 Счет компании: {recipient_doc['balance']}")
     except:
-        return
-    bot.send_message(sender_doc['admin_chat_id'], '✅ Транзакция успешно проведена')
+        pass
+    bot.send_message(call.message.chat.id, f'✅ Транзакция успешно проведена, налог составил {tax} Бублей')
     return 'Транзакция успешно проведена'
 
 
@@ -475,6 +499,11 @@ def process_amount_callback_q(message, callback_data):
         bot.register_next_step_handler(sent, process_amount_callback_q, callback_data)
         return
 
+    if amount < 0:
+        bot.send_message(message.chat.id, 'Отрицательная сумма или ноль, вернемся в главное меню')
+        main_menu_func(message)
+        return
+
     parts = callback_data.split(':')
     sender = parts[1]
     recipient = int(parts[2])
@@ -501,13 +530,18 @@ def process_transaction_q(call):
     sender_doc = org.find_one({'id_organization': sender})
     recipient_doc = users.find_one({'chat_id': recipient})
     # Проверяем, что пользователи найдены
+    if amount < 0:
+        bot.send_message(call.message.chat.id, 'Отрицательная сумма или ноль, вернемся в главное меню')
+        main_menu_func(message)
+        return
+
     if not sender_doc:
         return 'Отправитель не найден'
     if not recipient_doc:
         return 'Получатель не найден'
     # Проверяем, что сумма транзакции не превышает баланс отправителя
     if recipient_doc['balance'] < amount:
-        sent = bot.send_message(sender_doc['admin_chat_id'], 'У клиента недостаточно средств')
+        sent = bot.send_message(call.message.chat.id, 'У клиента недостаточно средств')
         main_menu_func(call.message)
         return 'Недостаточно средств'
     tax = int(amount*0.13)
@@ -525,7 +559,7 @@ def process_transaction_q(call):
     transactions.insert_one(transaction)
     recipient_doc = users.find_one({'chat_id': recipient})
     sender_doc = org.find_one({'id_organization': sender})
-    bot.send_message(sender_doc['admin_chat_id'],
+    bot.send_message(call.message.chat.id,
                      f"{amount} Бублей от {recipient_doc['name']} поступило на\nВаш баланс: {sender_doc['balance']} буб.\nБаланс {recipient_doc['name']} = {recipient_doc['balance']} буб.\nНалог составляет {tax} буб.")
     try:
         bot.send_message(recipient_doc['chat_id'], f"🏛 Оплата {amount} Бублей организации \"{sender_doc['name']}\"")
